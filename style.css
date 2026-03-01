@@ -870,7 +870,7 @@ body:hover .cursor-glow {
 /* Arena */
 .arena {
     width: 100%;
-    max-width: 480px;
+    max-width: 380px;
     aspect-ratio: 1;
     border-radius: var(--r);
     display: flex;
@@ -1390,19 +1390,39 @@ body.micro-shake {
 
 .modal-panel {
     position: relative;
-    background: rgba(8, 12, 26, .85);
-    border: 1px solid var(--glass-b);
-    backdrop-filter: blur(30px);
+    background: rgba(8, 12, 26, .9);
+    border: 1px solid rgba(0, 229, 255, .08);
+    backdrop-filter: blur(36px);
     padding: 1.8rem 2rem;
     border-radius: 1.5rem;
     width: 90%;
     max-width: 420px;
     max-height: 85vh;
     overflow: hidden;
-    box-shadow: 0 20px 80px rgba(0, 0, 0, .5), 0 0 1px rgba(255, 255, 255, .05);
+    box-shadow: 0 20px 80px rgba(0, 0, 0, .5), 0 0 40px rgba(0, 229, 255, .03), inset 0 1px 0 rgba(255, 255, 255, .04);
     transition: transform .45s var(--ease-back);
     display: flex;
     flex-direction: column;
+}
+
+.modal-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(0, 229, 255, .03) 0%, transparent 40%, transparent 80%, rgba(192, 96, 255, .02) 100%);
+}
+
+.modal-panel::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 10%, rgba(0, 229, 255, .2) 50%, transparent 90%);
+    pointer-events: none;
 }
 
 .modal-head {
@@ -1464,15 +1484,18 @@ body.micro-shake {
     gap: .15rem;
     padding: .8rem .4rem;
     border-radius: .9rem;
-    background: rgba(255, 255, 255, .025);
+    background: linear-gradient(180deg, rgba(255, 255, 255, .035) 0%, rgba(255, 255, 255, .015) 100%);
     border: 1px solid var(--glass-b);
-    transition: border-color .3s ease, transform .3s var(--ease);
+    transition: border-color .3s ease, transform .3s var(--ease), box-shadow .3s ease;
+    position: relative;
 }
 
 .stat-tile:hover {
-    border-color: rgba(255, 255, 255, .1);
-    transform: translateY(-2px)
+    border-color: rgba(255, 255, 255, .12);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .2)
 }
+
 
 .stat-icon {
     font-size: 1.2rem

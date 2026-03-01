@@ -498,6 +498,11 @@ class ReactionRush {
 
         this.updateStatsUI();
 
+        /* Immediately go to idle to prevent double-clicks, then auto-start next round */
+        this.setIdle();
+        this.title.innerText = tier;
+        this.subtitle.innerText = `${latency}ms`;
+
         setTimeout(() => this.setWaiting(), 1200);
     }
 
