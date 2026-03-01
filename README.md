@@ -1,5 +1,14 @@
 # ⚡ Reaction Rush
 
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![Web Audio API](https://img.shields.io/badge/Web_Audio_API-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)
+![Google Fonts](https://img.shields.io/badge/Google_Fonts-4285F4?style=for-the-badge&logo=google-fonts&logoColor=white)
+![No Dependencies](https://img.shields.io/badge/Dependencies-Zero-00E676?style=for-the-badge)
+![License MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+![Discord](https://img.shields.io/badge/Discord-Join_Us-5865F2?style=for-the-badge&logo=discord&logoColor=white)
+
 A fast-paced, cinematic reaction-time game built with pure HTML, CSS, and Vanilla JavaScript. Test your reflexes, build streaks, and compete on the leaderboard — all wrapped in a stunning futuristic neon UI.
 
 **[Join the Discord →](https://discord.gg/g9tNSWFh4r)**
