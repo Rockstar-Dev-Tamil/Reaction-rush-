@@ -11,7 +11,9 @@
 
 A fast-paced, cinematic reaction-time game built with pure HTML, CSS, and Vanilla JavaScript. Test your reflexes, build streaks, and compete on the leaderboard — all wrapped in a stunning futuristic neon UI.
 
-**[Join the Discord →](https://discord.gg/g9tNSWFh4r)**
+**🎮 [Play the Live Demo →](https://reactionrushr.netlify.app/)**
+<br>
+**💬 [Join the Discord →](https://discord.gg/g9tNSWFh4r)**
 
 ---
 
