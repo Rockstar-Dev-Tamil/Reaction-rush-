@@ -1,65 +1,62 @@
-const GameState = {
-    IDLE: 'idle',
-    WAITING: 'waiting',
-    ACTIVE: 'active',
-    PENALTY: 'penalty',
-    BONUS: 'bonus'
-};
+/* ==========================================================
+   REACTION RUSH — Game Engine v3
+   ========================================================== */
+
+const GameState = { IDLE: 'idle', WAITING: 'waiting', ACTIVE: 'active', PENALTY: 'penalty', BONUS: 'bonus' };
 
 class ReactionRush {
     constructor() {
-        this.currentState = GameState.IDLE;
-        this.introActive = true;
-
-        // Intro
+        /* --- DOM refs --- */
         this.introSection = document.getElementById('intro-section');
         this.gameSection = document.getElementById('game-section');
         this.startBtn = document.getElementById('start-btn');
-
-        // Arena
         this.arena = document.getElementById('game-arena');
         this.title = document.getElementById('arena-title');
         this.subtitle = document.getElementById('arena-subtitle');
-        this.feedback = document.getElementById('feedback-overlay');
-        this.feedbackText = document.getElementById('feedback-text');
-        this.feedbackSubtext = document.getElementById('feedback-subtext');
-
-        // HUD
         this.currentScoreEl = document.getElementById('current-score');
         this.streakEl = document.getElementById('streak-multiplier');
-        this.highScoreEl = document.getElementById('high-score');
         this.roundEl = document.getElementById('round-number');
         this.streakFire = document.getElementById('streak-fire');
+        this.streakChip = document.getElementById('streak-chip');
+        this.scoreChip = document.getElementById('score-chip');
         this.audioToggle = document.getElementById('audio-toggle');
-        this.audioOnIcon = document.getElementById('icon-audio-on');
-        this.audioOffIcon = document.getElementById('icon-audio-off');
-
-        // Theme / Stats
         this.themeSelect = document.getElementById('theme-select');
-        this.statsBtn = document.getElementById('stats-button');
-        this.statsModal = document.getElementById('stats-modal');
-        this.closeStatsBtn = document.getElementById('close-stats');
+        this.feedbackEl = document.getElementById('feedback-overlay');
+        this.feedbackText = document.getElementById('feedback-text');
+        this.feedbackSub = document.getElementById('feedback-subtext');
+        this.modal = document.getElementById('stats-modal');
         this.statAvgEl = document.getElementById('stat-avg');
         this.statRoundsEl = document.getElementById('stat-rounds');
         this.statBestEl = document.getElementById('stat-best');
-        this.leaderboardListEl = document.getElementById('leaderboard-list');
+        this.leaderboardEl = document.getElementById('leaderboard-list');
+        this.spotlight = document.getElementById('arena-spotlight');
+        this.gridPlane = document.getElementById('grid-plane');
+        this.shockwave = document.getElementById('shockwave');
+        this.vigPulse = document.getElementById('vignette-pulse');
+        this.cursorGlow = document.getElementById('cursor-glow');
+        this.dustCanvas = document.getElementById('dust-canvas');
 
-        // Persisted data
-        this.topScores = JSON.parse(localStorage.getItem('top_scores')) || [];
-        if (this.topScores.length === 0 && localStorage.getItem('high_score')) {
-            this.topScores.push(parseInt(localStorage.getItem('high_score')));
-        }
-        this.totalRoundsAllTime = parseInt(localStorage.getItem('total_rounds_all')) || 0;
-        this.totalLatencyAllTime = parseInt(localStorage.getItem('total_latency_all')) || 0;
-
-        // Game state
+        /* --- State --- */
+        this.currentState = GameState.IDLE;
+        this.introActive = true;
         this.currentScore = 0;
+        this.displayedScore = 0;
         this.streak = 1;
         this.round = 1;
-        this.displayedScore = 0;
-        this.scoreAnimFrame = null;
         this.waitingTimeout = null;
         this.activationTime = 0;
+        this.deceptionCount = 0;
+        this.scoreAnimFrame = null;
+
+        /* --- Persistence --- */
+        this.topScores = JSON.parse(localStorage.getItem('top_scores') || '[]');
+        this.totalRoundsAllTime = parseInt(localStorage.getItem('total_rounds_all') || '0');
+        this.totalLatencyAllTime = parseInt(localStorage.getItem('total_latency_all') || '0');
+        this.audioEnabled = localStorage.getItem('audio_enabled') !== 'false';
+
+        /* --- Dust particles --- */
+        this.dustParticles = [];
+        this.initDust();
 
         this.init();
     }
@@ -68,123 +65,134 @@ class ReactionRush {
         this.updateStatsUI();
         this.updateAudioIcon();
 
-        // === Intro interactions ===
+        /* Intro */
         this.startBtn.addEventListener('click', () => this.launchGame());
 
-        // Shine effect on btn hover
-        this.startBtn.addEventListener('mouseenter', () => {
-            this.startBtn.querySelector('.btn-shine').style.animation = 'none';
-            void this.startBtn.querySelector('.btn-shine').offsetWidth;
-        });
+        /* Arena */
+        this.arena.addEventListener('click', (e) => this.handleAction(e));
 
-        // === Keyboard ===
+        /* Keyboard */
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
+            if (e.code === 'Space' || e.key === ' ') {
                 e.preventDefault();
-                if (this.introActive) { this.launchGame(); return; }
-                if (!e.repeat) this.handleAction();
+                if (this.introActive) this.launchGame();
+                else this.handleAction();
             }
         });
 
-        // === Arena ===
-        this.arena.addEventListener('mousedown', (e) => this.handleAction(e));
-        this.arena.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.handleAction(e.touches[0]);
-        });
-
-        // === Audio ===
+        /* Audio toggle */
         this.audioToggle.addEventListener('click', () => {
-            audioController.toggle();
+            this.audioEnabled = !this.audioEnabled;
+            localStorage.setItem('audio_enabled', this.audioEnabled);
             this.updateAudioIcon();
         });
 
-        // === Theme ===
-        this.currentTheme = localStorage.getItem('theme') || 'dark';
-        this.applyTheme(this.currentTheme);
-        this.themeSelect.value = this.currentTheme;
-
-        this.themeSelect.addEventListener('change', (e) => {
-            this.applyTheme(e.target.value);
-            this.themeSelect.blur();
+        /* Theme */
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.body.setAttribute('data-theme', savedTheme);
+        this.themeSelect.value = savedTheme;
+        this.themeSelect.addEventListener('change', () => {
+            document.body.setAttribute('data-theme', this.themeSelect.value);
+            localStorage.setItem('theme', this.themeSelect.value);
         });
 
-        // === Stats modal ===
-        this.statsBtn.addEventListener('click', () => {
-            this.updateModalUI();
-            this.statsModal.classList.remove('hidden');
-        });
+        /* Stats modal */
+        document.getElementById('stats-button').addEventListener('click', () => this.openModal());
+        document.getElementById('close-stats').addEventListener('click', () => this.closeModal());
+        document.querySelector('.modal-backdrop').addEventListener('click', () => this.closeModal());
 
-        this.closeStatsBtn.addEventListener('click', () => {
-            this.statsModal.classList.add('hidden');
-        });
-
-        this.statsModal.querySelector('.modal-backdrop').addEventListener('click', () => {
-            this.statsModal.classList.add('hidden');
-        });
-
-        // === Cursor glow ===
-        this.cursorGlow = document.getElementById('cursor-glow');
-        let cursorRaf = null;
-        document.addEventListener('mousemove', (e) => {
-            if (cursorRaf) return;
-            cursorRaf = requestAnimationFrame(() => {
-                this.cursorGlow.style.left = `${e.clientX}px`;
-                this.cursorGlow.style.top = `${e.clientY}px`;
-                cursorRaf = null;
+        /* Cursor glow + grid parallax */
+        let glowRaf = null;
+        window.addEventListener('mousemove', (e) => {
+            if (glowRaf) return;
+            glowRaf = requestAnimationFrame(() => {
+                this.cursorGlow.style.left = e.clientX + 'px';
+                this.cursorGlow.style.top = e.clientY + 'px';
+                /* Grid parallax */
+                const mx = (e.clientX / window.innerWidth - 0.5) * 2;
+                const my = (e.clientY / window.innerHeight - 0.5) * 2;
+                this.gridPlane.style.transform = `perspective(500px) rotateX(${55 + my * 2}deg) rotateY(${mx * 1.5}deg)`;
+                glowRaf = null;
             });
         });
-
-        this.setIdle();
     }
 
+    /* ========== DUST PARTICLES ========== */
+    initDust() {
+        const ctx = this.dustCanvas.getContext('2d');
+        const resize = () => {
+            this.dustCanvas.width = window.innerWidth;
+            this.dustCanvas.height = window.innerHeight;
+        };
+        resize();
+        window.addEventListener('resize', resize);
+
+        for (let i = 0; i < 50; i++) {
+            this.dustParticles.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                r: Math.random() * 1.2 + 0.3,
+                vx: (Math.random() - 0.3) * 0.35,
+                vy: (Math.random() - 0.5) * 0.15,
+                alpha: Math.random() * 0.4 + 0.1,
+            });
+        }
+
+        const draw = () => {
+            ctx.clearRect(0, 0, this.dustCanvas.width, this.dustCanvas.height);
+            this.dustParticles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x > this.dustCanvas.width + 5) p.x = -5;
+                if (p.x < -5) p.x = this.dustCanvas.width + 5;
+                if (p.y > this.dustCanvas.height + 5) p.y = -5;
+                if (p.y < -5) p.y = this.dustCanvas.height + 5;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(200,220,255,${p.alpha})`;
+                ctx.fill();
+            });
+            requestAnimationFrame(draw);
+        };
+        draw();
+    }
+
+    /* ========== INTRO → GAME ========== */
     launchGame() {
         if (!this.introActive) return;
         this.introActive = false;
         audioController.initCtx();
-
         this.introSection.classList.add('exit');
 
         setTimeout(() => {
             this.introSection.style.display = 'none';
             this.gameSection.classList.remove('hidden-game');
-            // Trigger reflow, then animate in
             void this.gameSection.offsetWidth;
             this.gameSection.classList.add('visible-game');
-        }, 700);
+        }, 800);
     }
 
-    applyTheme(theme) {
-        document.body.setAttribute('data-theme', theme);
-        localStorage.setItem('theme', theme);
-        this.currentTheme = theme;
-    }
-
-    triggerHaptic(pattern) {
-        if ('vibrate' in navigator) navigator.vibrate(pattern);
-    }
-
+    /* ========== AUDIO ICON ========== */
     updateAudioIcon() {
-        this.audioOnIcon.style.display = audioController.enabled ? 'block' : 'none';
-        this.audioOffIcon.style.display = audioController.enabled ? 'none' : 'block';
+        document.getElementById('icon-audio-on').style.display = this.audioEnabled ? 'block' : 'none';
+        document.getElementById('icon-audio-off').style.display = this.audioEnabled ? 'none' : 'block';
     }
 
-    // Rolling score animation
+    /* ========== SCORING ========== */
     animateScoreTo(target) {
         if (this.scoreAnimFrame) cancelAnimationFrame(this.scoreAnimFrame);
         const start = this.displayedScore;
         const diff = target - start;
-        if (diff === 0) return;
-
-        const startTime = performance.now();
-        const duration = Math.min(700, Math.abs(diff) * 2 + 150);
+        const duration = Math.min(600, Math.max(200, Math.abs(diff) * 2));
+        const t0 = performance.now();
 
         const step = (now) => {
-            const progress = Math.min(1, (now - startTime) / duration);
+            const elapsed = now - t0;
+            const progress = Math.min(elapsed / duration, 1);
             const eased = 1 - Math.pow(1 - progress, 3);
-            this.displayedScore = Math.round(start + diff * eased);
-            this.currentScoreEl.innerText = this.displayedScore.toLocaleString();
-
+            const current = Math.round(start + diff * eased);
+            this.displayedScore = current;
+            this.currentScoreEl.innerText = current.toLocaleString();
             if (progress < 1) {
                 this.scoreAnimFrame = requestAnimationFrame(step);
             } else {
@@ -192,40 +200,84 @@ class ReactionRush {
                 this.currentScoreEl.innerText = target.toLocaleString();
             }
         };
-
         this.scoreAnimFrame = requestAnimationFrame(step);
 
-        // Bump animation
+        /* Bump animation */
         this.currentScoreEl.classList.remove('bump');
         void this.currentScoreEl.offsetWidth;
         this.currentScoreEl.classList.add('bump');
+
+        /* Light pulse on big gains */
+        if (diff > 300) {
+            this.scoreChip.classList.add('pulse-glow');
+            setTimeout(() => this.scoreChip.classList.remove('pulse-glow'), 400);
+        }
     }
 
     updateStatsUI() {
-        if (this.highScoreEl) this.highScoreEl.innerText = this.topScores.length > 0 ? this.topScores[0].toLocaleString() : '0';
         this.animateScoreTo(this.currentScore);
         this.streakEl.innerText = `${this.streak}x`;
         this.roundEl.innerText = this.round;
 
-        // Fire glow on streak >= 3
+        /* Fire glow on streak >= 3 */
         if (this.streak >= 3) {
             this.streakFire.classList.add('lit');
         } else {
             this.streakFire.classList.remove('lit');
         }
+
+        /* Hot chip at 5+ */
+        if (this.streak >= 5) {
+            this.streakChip.classList.add('hot');
+        } else {
+            this.streakChip.classList.remove('hot');
+        }
+
+        /* Atmospheric intensity */
+        this.updateIntensity();
+    }
+
+    /* ========== ATMOSPHERIC INTENSITY ========== */
+    updateIntensity() {
+        const level = Math.min(this.streak, 15);
+        const bright = 1 + level * 0.008;
+        const glow = 1 + level * 0.06;
+        const speed = 1 + level * 0.03;
+
+        document.body.setAttribute('data-intensity', level);
+        document.body.style.setProperty('--i-bright', bright);
+        document.body.style.setProperty('--i-glow', glow);
+        document.body.style.setProperty('--i-speed', speed);
+
+        /* Grid intensity */
+        if (this.gridPlane) {
+            this.gridPlane.style.opacity = 0.4 + level * 0.04;
+        }
+    }
+
+    /* ========== MODAL ========== */
+    openModal() {
+        this.updateModalUI();
+        this.modal.classList.remove('hidden');
+    }
+
+    closeModal() {
+        this.modal.classList.add('hidden');
     }
 
     updateModalUI() {
         const avg = this.totalRoundsAllTime > 0
             ? Math.round(this.totalLatencyAllTime / this.totalRoundsAllTime) : 0;
 
-        this.statAvgEl.innerText = `${avg}ms`;
-        this.statRoundsEl.innerText = this.totalRoundsAllTime.toLocaleString();
-        this.statBestEl.innerText = this.topScores.length > 0 ? this.topScores[0].toLocaleString() : '0';
+        /* Animated count-up */
+        this.animateCounter(this.statAvgEl, avg, 'ms');
+        this.animateCounter(this.statRoundsEl, this.totalRoundsAllTime, '');
+        this.animateCounter(this.statBestEl, this.topScores.length > 0 ? this.topScores[0] : 0, '');
 
-        this.leaderboardListEl.innerHTML = '';
+        /* Leaderboard */
+        this.leaderboardEl.innerHTML = '';
         if (this.topScores.length === 0) {
-            this.leaderboardListEl.innerHTML = '<li><span class="rank-score">Play a round to see scores</span></li>';
+            this.leaderboardEl.innerHTML = '<li><span class="rank-score">Play a round to see scores</span></li>';
         } else {
             const medals = ['🥇', '🥈', '🥉'];
             this.topScores.forEach((score, i) => {
@@ -235,17 +287,29 @@ class ReactionRush {
                     <span class="rank-number">#${i + 1}</span>
                     <span class="rank-score">${score.toLocaleString()} pts</span>
                 `;
-                li.style.animation = `fb-in 0.4s ${i * 0.06}s cubic-bezier(0.34,1.56,0.64,1) both`;
-                this.leaderboardListEl.appendChild(li);
+                li.style.animation = `fb-in 0.4s ${i * 0.07}s var(--ease-back) both`;
+                this.leaderboardEl.appendChild(li);
             });
         }
     }
 
+    /* Counter animation for stats modal */
+    animateCounter(el, target, suffix) {
+        const dur = 600;
+        const t0 = performance.now();
+        const tick = (now) => {
+            const p = Math.min((now - t0) / dur, 1);
+            const eased = 1 - Math.pow(1 - p, 3);
+            el.innerText = Math.round(target * eased).toLocaleString() + suffix;
+            if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    }
+
+    /* ========== LEADERBOARD ========== */
     saveRunToLeaderboard() {
         if (this.currentScore <= 0) return;
-        // Only save if this score qualifies for the top 5
         if (this.topScores.length < 5 || this.currentScore > this.topScores[this.topScores.length - 1]) {
-            // Remove duplicates if any
             this.topScores = this.topScores.filter(s => s !== this.currentScore);
             this.topScores.push(this.currentScore);
             this.topScores.sort((a, b) => b - a);
@@ -254,106 +318,90 @@ class ReactionRush {
         }
     }
 
+    /* ========== STATE MACHINE ========== */
     setStateClass(state) {
         Object.values(GameState).forEach(s => this.arena.classList.remove(s));
         for (let i = 1; i <= 5; i++) this.arena.classList.remove(`level-${i}`);
-
         this.arena.classList.add(state);
 
         const level = Math.min(5, Math.floor(this.streak / 5) + 1);
-        if (state === GameState.WAITING || state === GameState.ACTIVE || state === GameState.BONUS) {
-            this.arena.classList.add(`level-${level}`);
-        }
-
+        if (level > 1) this.arena.classList.add(`level-${level}`);
         this.currentState = state;
+
+        /* Spotlight color shift */
+        const colors = {
+            idle: 'rgba(0,229,255,.06)',
+            waiting: 'rgba(255,34,85,.1)',
+            active: 'rgba(0,230,118,.12)',
+            bonus: 'rgba(192,96,255,.1)',
+            penalty: 'rgba(255,140,0,.08)',
+        };
+        this.spotlight.style.background = `radial-gradient(circle,${colors[state] || colors.idle} 0%,transparent 65%)`;
     }
-
-    showFeedback(title, subtext, isNegative = false) {
-        this.feedback.classList.remove('hidden', 'negative');
-        if (isNegative) this.feedback.classList.add('negative');
-        this.feedbackText.innerText = title;
-        this.feedbackSubtext.innerText = subtext;
-
-        setTimeout(() => {
-            this.feedback.classList.add('hidden');
-        }, 1500);
-    }
-
-    spawnFloatingScore(x, y, text, isBonus = false) {
-        const el = document.createElement('div');
-        el.className = 'floating-score' + (isBonus ? ' bonus-score' : '');
-        el.innerText = text;
-        el.style.left = `${x + (Math.random() - 0.5) * 30}px`;
-        el.style.top = `${y - 15}px`;
-        document.body.appendChild(el);
-        setTimeout(() => el.remove(), 1400);
-    }
-
-    // --- State Methods (unchanged mechanics) ---
 
     setIdle() {
         this.setStateClass(GameState.IDLE);
+        this.arena.style.backgroundColor = '';
+        this.arena.style.boxShadow = '';
         this.title.innerText = 'Reaction Rush';
         this.subtitle.innerText = 'Click anywhere to start';
     }
 
     setWaiting() {
         this.setStateClass(GameState.WAITING);
-        this.title.innerText = 'Wait for Green...';
-        this.subtitle.innerText = 'Steady...';
+        this.title.innerText = 'Wait...';
+        this.subtitle.innerText = 'Don\'t click yet!';
 
-        const difficultyLevel = Math.min(this.round, 20);
-        const minDelay = Math.max(1000, 1500 - (25 * difficultyLevel));
-        const variance = Math.max(1000, 3000 - (100 * difficultyLevel));
-        const delay = Math.random() * variance + minDelay;
+        const baseDelay = Math.max(800, 2500 - this.streak * 80);
+        const randomExtra = Math.random() * 1500;
+        const totalDelay = baseDelay + randomExtra;
 
-        const deceptionChance = Math.min(0.30, 0.02 * difficultyLevel);
-        const willDeceive = Math.random() < deceptionChance;
+        /* Deception flashes */
+        this.deceptionCount = 0;
+        const maxDeceptions = Math.min(3, Math.floor(this.streak / 3));
+        if (maxDeceptions > 0 && Math.random() < 0.4 + this.streak * 0.03) {
+            this.scheduleDeceptions(maxDeceptions, totalDelay);
+        }
 
-        if (willDeceive) {
-            const deceptiveDelay = delay * 0.4;
-            this.waitingTimeout = setTimeout(() => {
-                this.triggerDeception();
-                this.waitingTimeout = setTimeout(() => {
-                    this.activateRealSignal();
-                }, delay - deceptiveDelay);
-            }, deceptiveDelay);
-        } else {
-            this.waitingTimeout = setTimeout(() => {
-                this.activateRealSignal();
-            }, delay);
+        /* Bonus chance */
+        const isBonus = Math.random() < 0.12 + this.streak * 0.01;
+
+        this.waitingTimeout = setTimeout(() => {
+            if (isBonus) this.setBonus();
+            else this.setActive();
+        }, totalDelay);
+    }
+
+    scheduleDeceptions(count, maxTime) {
+        for (let i = 0; i < count; i++) {
+            const flashTime = Math.random() * (maxTime * 0.7) + 200;
+            setTimeout(() => {
+                if (this.currentState !== GameState.WAITING) return;
+                this.arena.style.backgroundColor = 'rgba(255,80,0,0.15)';
+                this.arena.style.boxShadow = '0 0 40px rgba(255,80,0,0.2)';
+                setTimeout(() => {
+                    if (this.currentState !== GameState.WAITING) return;
+                    this.arena.style.backgroundColor = '';
+                    this.arena.style.boxShadow = '';
+                }, 120 + Math.random() * 80);
+            }, flashTime);
         }
     }
 
-    triggerDeception() {
-        this.arena.style.backgroundColor = 'var(--penalty)';
-        this.arena.style.boxShadow = 'var(--glow-pen)';
-        setTimeout(() => {
-            if (this.currentState === GameState.WAITING) {
-                this.arena.style.backgroundColor = '';
-                this.arena.style.boxShadow = '';
-            }
-        }, 150);
-    }
-
-    activateRealSignal() {
-        this.setActive(Math.random() < 0.1);
-    }
-
-    setActive(isBonus = false) {
-        this.setStateClass(isBonus ? GameState.BONUS : GameState.ACTIVE);
-        this.title.innerText = 'CLICK NOW!';
-        this.subtitle.innerText = isBonus ? '⭐ 2x BONUS ⭐' : '';
-
-        if (isBonus) {
-            audioController.playBonus();
-            this.triggerHaptic([50, 50, 50]);
-        } else {
-            audioController.playActive();
-            this.triggerHaptic(50);
-        }
-
+    setActive() {
+        this.setStateClass(GameState.ACTIVE);
         this.activationTime = performance.now();
+        this.title.innerText = 'NOW!';
+        this.subtitle.innerText = 'Click!';
+        audioController.playActive();
+    }
+
+    setBonus() {
+        this.setStateClass(GameState.BONUS);
+        this.activationTime = performance.now();
+        this.title.innerText = 'BONUS!';
+        this.subtitle.innerText = '2x Score!';
+        audioController.playBonus();
     }
 
     setPenalty() {
@@ -366,7 +414,10 @@ class ReactionRush {
         audioController.playPenalty();
         this.triggerHaptic([100, 50, 100]);
 
-        // Save run score to leaderboard before resetting
+        /* Vignette pulse */
+        this.triggerVignettePulse();
+
+        /* Save run score */
         this.saveRunToLeaderboard();
 
         this.currentScore = 0;
@@ -376,10 +427,10 @@ class ReactionRush {
         this.updateStatsUI();
 
         this.showFeedback('False Start!', 'Score & Streak Reset', true);
-
         setTimeout(() => this.setIdle(), 1500);
     }
 
+    /* ========== ACTION HANDLER ========== */
     handleAction(event = null) {
         audioController.initCtx();
 
@@ -416,63 +467,99 @@ class ReactionRush {
         localStorage.setItem('total_rounds_all', this.totalRoundsAllTime);
         localStorage.setItem('total_latency_all', this.totalLatencyAllTime);
 
-
         let tier = '';
         if (latency < 150) { tier = 'Godlike!'; this.triggerGodlikeImpact(event); }
-        else if (latency < 200) tier = 'Incredible!';
+        else if (latency < 200) { tier = 'Incredible!'; this.triggerVignettePulse(); }
         else if (latency < 250) tier = 'Great!';
         else if (latency < 320) tier = 'Nice';
         else if (latency < 400) tier = 'Okay';
         else tier = 'Sluggish...';
 
         this.showFeedback(tier, `${latency}ms  (+${scoreGained.toLocaleString()})`);
+        this.showFloatingScore(event, scoreGained, isBonus);
 
-        // Floating score
-        let fx, fy;
-        if (event && event.clientX) { fx = event.clientX; fy = event.clientY; }
-        else {
-            const r = this.arena.getBoundingClientRect();
-            fx = r.left + r.width / 2; fy = r.top + r.height / 2;
+        /* Particles */
+        if (typeof particleSystem !== 'undefined') {
+            const x = event ? event.clientX : window.innerWidth / 2;
+            const y = event ? event.clientY : window.innerHeight / 2;
+            const count = latency < 200 ? 25 : latency < 300 ? 15 : 8;
+            const color = isBonus ? 'gold' : 'random';
+            particleSystem.emit(x, y, count, color);
         }
-        this.spawnFloatingScore(fx, fy, `+${scoreGained.toLocaleString()}`, isBonus);
-
-        this.triggerParticles(event, isBonus);
 
         this.streak++;
         this.round++;
-        this.updateStatsUI();
-        this.setIdle();
-    }
 
-    triggerParticles(event, isBonus) {
-        if (!window.particleSystem) return;
-        let x, y;
-        if (event && event.clientX) { x = event.clientX; y = event.clientY; }
-        else {
-            const r = this.arena.getBoundingClientRect();
-            x = r.left + r.width / 2; y = r.top + r.height / 2;
+        /* Camera micro-shake at streak thresholds */
+        if (this.streak % 5 === 0 && this.streak >= 5) {
+            document.body.classList.add('micro-shake');
+            setTimeout(() => document.body.classList.remove('micro-shake'), 200);
         }
-        const color = isBonus ? '#c060ff' : 'random';
-        const count = isBonus ? 45 : 20 + Math.min(this.streak * 3, 35);
-        window.particleSystem.spawn(x, y, count, color);
+
+        this.updateStatsUI();
+
+        setTimeout(() => this.setWaiting(), 1200);
     }
 
-    triggerGodlikeImpact(event) {
-        document.body.classList.add('godlike-impact');
-        setTimeout(() => document.body.classList.remove('godlike-impact'), 400);
+    /* ========== FEEDBACK ========== */
+    showFeedback(text, subtext, isNeg = false) {
+        this.feedbackEl.classList.remove('hidden', 'negative');
+        if (isNeg) this.feedbackEl.classList.add('negative');
+        this.feedbackText.innerText = text;
+        this.feedbackSub.innerText = subtext;
+        clearTimeout(this.feedbackTimeout);
+        this.feedbackTimeout = setTimeout(() => this.feedbackEl.classList.add('hidden'), 1000);
+    }
 
-        if (window.particleSystem) {
-            let x, y;
-            if (event && event.clientX) { x = event.clientX; y = event.clientY; }
-            else {
-                const r = this.arena.getBoundingClientRect();
-                x = r.left + r.width / 2; y = r.top + r.height / 2;
-            }
-            window.particleSystem.impactBurst(x, y);
+    showFloatingScore(event, score, isBonus) {
+        if (!event) return;
+        const el = document.createElement('div');
+        el.className = `floating-score${isBonus ? ' bonus-score' : ''}`;
+        el.innerText = `+${score.toLocaleString()}`;
+        el.style.left = event.clientX + 'px';
+        el.style.top = event.clientY + 'px';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 1300);
+    }
+
+    /* ========== EFFECTS ========== */
+    triggerGodlikeImpact(event) {
+        /* Screen shake */
+        document.body.classList.add('godlike-impact');
+        setTimeout(() => document.body.classList.remove('godlike-impact'), 500);
+
+        /* Shockwave */
+        this.shockwave.classList.remove('active');
+        void this.shockwave.offsetWidth;
+        this.shockwave.classList.add('active');
+        setTimeout(() => this.shockwave.classList.remove('active'), 700);
+
+        /* Vignette pulse */
+        this.triggerVignettePulse();
+
+        /* Impact burst particles */
+        if (typeof particleSystem !== 'undefined') {
+            const x = event ? event.clientX : window.innerWidth / 2;
+            const y = event ? event.clientY : window.innerHeight / 2;
+            particleSystem.impactBurst(x, y);
+        }
+    }
+
+    triggerVignettePulse() {
+        this.vigPulse.classList.remove('flash');
+        void this.vigPulse.offsetWidth;
+        this.vigPulse.classList.add('flash');
+        setTimeout(() => this.vigPulse.classList.remove('flash'), 500);
+    }
+
+    triggerHaptic(pattern) {
+        if (navigator.vibrate && this.audioEnabled) {
+            navigator.vibrate(pattern);
         }
     }
 }
 
+/* ========== INIT ========== */
 window.addEventListener('DOMContentLoaded', () => {
     new ReactionRush();
 });

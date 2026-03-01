@@ -1,258 +1,170 @@
+/* ==========================================================
+   REACTION RUSH — Particle System v3
+   ========================================================== */
+
 class ParticleSystem {
     constructor() {
-        this.container = document.createElement('div');
-        this.container.className = 'particles-container';
-        document.body.appendChild(this.container);
-
-        this.styleSheet = document.createElement('style');
-        this.styleSheet.textContent = `
-            .particles-container {
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
-                pointer-events: none;
-                z-index: 100;
-                overflow: hidden;
-            }
-            .particle {
-                position: absolute;
-                will-change: transform, opacity;
-                pointer-events: none;
-            }
-            .particle-glow {
-                border-radius: 50%;
-                mix-blend-mode: screen;
-            }
-            .particle-trail {
-                border-radius: 50%;
-                filter: blur(2px);
-                mix-blend-mode: screen;
-            }
-            .particle-emoji {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                filter: drop-shadow(0 0 6px rgba(255,255,255,0.3));
-            }
-            .particle-spark {
-                border-radius: 50%;
-                mix-blend-mode: screen;
-                box-shadow: 0 0 6px currentColor, 0 0 12px currentColor;
-            }
-        `;
-        document.head.appendChild(this.styleSheet);
-
-        this.activeParticles = [];
-        this.isAnimating = false;
+        this.particles = [];
+        this.raf = null;
+        this.running = false;
     }
 
-    spawn(x, y, count = 20, color = 'random') {
-        const colors = [
-            '#00f0ff', '#ff2d78', '#00e676', '#bf5af2', '#ffd60a',
-            '#ff8c00', '#00e5ff', '#ea80fc', '#69f0ae', '#ffab40'
-        ];
+    emit(x, y, count = 15, colorMode = 'random') {
+        const colors = this.getColors(colorMode);
 
         for (let i = 0; i < count; i++) {
-            const actualColor = color === 'random'
-                ? colors[Math.floor(Math.random() * colors.length)]
-                : color;
+            const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.6;
+            const speed = 2 + Math.random() * 4;
+            const type = Math.random() < 0.15 ? 'emoji' : Math.random() < 0.35 ? 'spark' : 'glow';
 
-            const rand = Math.random();
-            if (rand < 0.15) {
-                this.createEmojiParticle(x, y);
-            } else if (rand < 0.4) {
-                this.createGlowParticle(x, y, actualColor);
-            } else if (rand < 0.7) {
-                this.createSparkParticle(x, y, actualColor);
-            } else {
-                this.createTrailParticle(x, y, actualColor);
-            }
-        }
-
-        if (!this.isAnimating) {
-            this.isAnimating = true;
-            this.animate();
-        }
-    }
-
-    createGlowParticle(x, y, color) {
-        const p = document.createElement('div');
-        p.className = 'particle particle-glow';
-        const size = Math.random() * 12 + 6;
-        p.style.width = `${size}px`;
-        p.style.height = `${size}px`;
-        p.style.backgroundColor = color;
-        p.style.boxShadow = `0 0 ${size}px ${color}, 0 0 ${size * 2}px ${color}`;
-        p.style.left = `${x}px`;
-        p.style.top = `${y}px`;
-
-        const angle = Math.random() * Math.PI * 2;
-        const velocity = Math.random() * 200 + 80;
-
-        this.container.appendChild(p);
-        this.activeParticles.push({
-            el: p,
-            x: 0, y: 0,
-            vx: Math.cos(angle) * velocity,
-            vy: Math.sin(angle) * velocity,
-            startTime: performance.now(),
-            duration: 800 + Math.random() * 500,
-            gravity: 80 + Math.random() * 60,
-            friction: 0.98
-        });
-    }
-
-    createSparkParticle(x, y, color) {
-        const p = document.createElement('div');
-        p.className = 'particle particle-spark';
-        const size = Math.random() * 5 + 3;
-        p.style.width = `${size}px`;
-        p.style.height = `${size}px`;
-        p.style.backgroundColor = color;
-        p.style.color = color;
-        p.style.left = `${x}px`;
-        p.style.top = `${y}px`;
-
-        const angle = Math.random() * Math.PI * 2;
-        const velocity = Math.random() * 300 + 100;
-
-        this.container.appendChild(p);
-        this.activeParticles.push({
-            el: p,
-            x: 0, y: 0,
-            vx: Math.cos(angle) * velocity,
-            vy: Math.sin(angle) * velocity,
-            startTime: performance.now(),
-            duration: 500 + Math.random() * 400,
-            gravity: 120 + Math.random() * 80,
-            friction: 0.96
-        });
-    }
-
-    createTrailParticle(x, y, color) {
-        const p = document.createElement('div');
-        p.className = 'particle particle-trail';
-        const size = Math.random() * 8 + 4;
-        p.style.width = `${size}px`;
-        p.style.height = `${size}px`;
-        p.style.backgroundColor = color;
-        p.style.left = `${x}px`;
-        p.style.top = `${y}px`;
-
-        const angle = Math.random() * Math.PI * 2;
-        const velocity = Math.random() * 160 + 60;
-
-        this.container.appendChild(p);
-        this.activeParticles.push({
-            el: p,
-            x: 0, y: 0,
-            vx: Math.cos(angle) * velocity,
-            vy: Math.sin(angle) * velocity,
-            startTime: performance.now(),
-            duration: 600 + Math.random() * 500,
-            gravity: 100 + Math.random() * 50,
-            friction: 0.97
-        });
-    }
-
-    createEmojiParticle(x, y) {
-        const emojis = ['💥', '✨', '⚡', '🚀', '🔥', '🎉', '💫', '⭐', '🌟', '💎'];
-        const p = document.createElement('div');
-        p.className = 'particle particle-emoji';
-        const size = Math.random() * 14 + 14;
-        p.style.fontSize = `${size}px`;
-        p.style.width = `${size + 4}px`;
-        p.style.height = `${size + 4}px`;
-        p.innerText = emojis[Math.floor(Math.random() * emojis.length)];
-        p.style.left = `${x}px`;
-        p.style.top = `${y}px`;
-
-        const angle = Math.random() * Math.PI * 2;
-        const velocity = Math.random() * 180 + 60;
-
-        this.container.appendChild(p);
-        this.activeParticles.push({
-            el: p,
-            x: 0, y: 0,
-            vx: Math.cos(angle) * velocity,
-            vy: Math.sin(angle) * velocity,
-            startTime: performance.now(),
-            duration: 900 + Math.random() * 400,
-            gravity: 60 + Math.random() * 40,
-            friction: 0.985,
-            spin: (Math.random() - 0.5) * 360
-        });
-    }
-
-    animate() {
-        const now = performance.now();
-        let i = this.activeParticles.length;
-
-        while (i--) {
-            const p = this.activeParticles[i];
-            const elapsed = (now - p.startTime) / 1000; // seconds
-            const progress = Math.min(1, (now - p.startTime) / p.duration);
-
-            if (progress >= 1) {
-                p.el.remove();
-                this.activeParticles.splice(i, 1);
-                continue;
-            }
-
-            // Physics
-            const easeProgress = 1 - Math.pow(1 - progress, 3);
-            p.x = p.vx * easeProgress;
-            p.y = p.vy * easeProgress + p.gravity * Math.pow(easeProgress, 2);
-
-            const opacity = 1 - Math.pow(progress, 2);
-            const scale = 1 - progress * 0.6;
-            const rotation = p.spin ? p.spin * easeProgress : 0;
-
-            p.el.style.transform = `translate(${p.x}px, ${p.y}px) scale(${scale}) rotate(${rotation}deg)`;
-            p.el.style.opacity = opacity;
-        }
-
-        if (this.activeParticles.length > 0) {
-            requestAnimationFrame(() => this.animate());
-        } else {
-            this.isAnimating = false;
-        }
-    }
-
-    // Impact burst — massive particle explosion for Godlike
-    impactBurst(x, y) {
-        this.spawn(x, y, 60, 'random');
-
-        // Extra ring of sparks
-        for (let i = 0; i < 20; i++) {
-            const angle = (i / 20) * Math.PI * 2;
-            const p = document.createElement('div');
-            p.className = 'particle particle-spark';
-            p.style.width = '4px';
-            p.style.height = '4px';
-            p.style.backgroundColor = '#fff';
-            p.style.color = '#fff';
-            p.style.left = `${x}px`;
-            p.style.top = `${y}px`;
-
-            this.container.appendChild(p);
-            const velocity = 350;
-            this.activeParticles.push({
-                el: p,
-                x: 0, y: 0,
-                vx: Math.cos(angle) * velocity,
-                vy: Math.sin(angle) * velocity,
-                startTime: performance.now(),
-                duration: 600,
-                gravity: 20,
-                friction: 0.95
+            this.particles.push({
+                x, y, type,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 1.5,
+                size: type === 'emoji' ? 16 : (2 + Math.random() * 4),
+                alpha: 1,
+                decay: 0.015 + Math.random() * 0.015,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                rotation: Math.random() * 360,
+                rotSpeed: (Math.random() - 0.5) * 8,
+                emoji: type === 'emoji' ? ['⚡', '✨', '💥', '🔥'][Math.floor(Math.random() * 4)] : null,
+                gravity: 0.05 + Math.random() * 0.05,
+                blur: type === 'glow' ? Math.random() * 3 : 0,
             });
         }
 
-        if (!this.isAnimating) {
-            this.isAnimating = true;
-            this.animate();
+        if (!this.running) this.startLoop();
+    }
+
+    impactBurst(x, y) {
+        const colors = ['#00e676', '#00e5ff', '#ffd740', '#ffffff'];
+
+        /* Main burst — 60 particles */
+        for (let i = 0; i < 60; i++) {
+            const angle = (Math.PI * 2 / 60) * i + (Math.random() - 0.5) * 0.3;
+            const speed = 3 + Math.random() * 7;
+            this.particles.push({
+                x, y, type: 'glow',
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 2,
+                size: 2 + Math.random() * 5,
+                alpha: 1,
+                decay: 0.01 + Math.random() * 0.012,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                rotation: 0, rotSpeed: 0, emoji: null,
+                gravity: 0.06,
+                blur: Math.random() * 4,
+            });
         }
+
+        /* Spark ring — 20 sparks */
+        for (let i = 0; i < 20; i++) {
+            const angle = (Math.PI * 2 / 20) * i;
+            const speed = 5 + Math.random() * 3;
+            this.particles.push({
+                x, y, type: 'spark',
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: 2 + Math.random() * 2,
+                alpha: 1,
+                decay: 0.02 + Math.random() * 0.01,
+                color: '#ffd740',
+                rotation: 0, rotSpeed: 0, emoji: null,
+                gravity: 0.02,
+                blur: 0,
+            });
+        }
+
+        /* Emojis */
+        for (let i = 0; i < 6; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 3;
+            this.particles.push({
+                x, y, type: 'emoji',
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 2,
+                size: 18 + Math.random() * 8,
+                alpha: 1,
+                decay: 0.01,
+                color: null,
+                rotation: Math.random() * 360,
+                rotSpeed: (Math.random() - 0.5) * 12,
+                emoji: ['💎', '⚡', '🔥', '✨', '🌟', '💥'][i],
+                gravity: 0.08,
+                blur: 0,
+            });
+        }
+
+        if (!this.running) this.startLoop();
+    }
+
+    getColors(mode) {
+        switch (mode) {
+            case 'gold': return ['#ffd740', '#ffea00', '#fff176', '#ffe082'];
+            case 'green': return ['#00e676', '#69f0ae', '#b9f6ca', '#00e5ff'];
+            case 'red': return ['#ff2255', '#ff5722', '#ff8a65'];
+            default: return ['#00e5ff', '#ff2d78', '#c060ff', '#00e676', '#ffd740', '#ffffff'];
+        }
+    }
+
+    startLoop() {
+        this.running = true;
+        const loop = () => {
+            if (this.particles.length === 0) {
+                this.running = false;
+                return;
+            }
+
+            this.particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity;
+                p.vx *= 0.985;
+                p.alpha -= p.decay;
+                p.rotation += p.rotSpeed;
+            });
+
+            this.particles = this.particles.filter(p => p.alpha > 0);
+            this.render();
+            this.raf = requestAnimationFrame(loop);
+        };
+        loop();
+    }
+
+    render() {
+        /* Remove old DOM particles */
+        document.querySelectorAll('.p-particle').forEach(el => el.remove());
+
+        this.particles.forEach(p => {
+            const el = document.createElement('div');
+            el.className = 'p-particle';
+            el.style.cssText = `
+                position:fixed;left:${p.x}px;top:${p.y}px;pointer-events:none;z-index:600;
+                transform:translate(-50%,-50%) rotate(${p.rotation}deg);
+                opacity:${Math.max(0, p.alpha)};
+            `;
+
+            if (p.type === 'emoji') {
+                el.style.fontSize = p.size + 'px';
+                el.innerText = p.emoji;
+            } else {
+                el.style.width = p.size + 'px';
+                el.style.height = p.size + 'px';
+                el.style.borderRadius = '50%';
+                el.style.background = p.color;
+
+                if (p.type === 'glow') {
+                    el.style.mixBlendMode = 'screen';
+                    el.style.filter = `blur(${p.blur}px)`;
+                    el.style.boxShadow = `0 0 ${p.size * 2}px ${p.color}`;
+                } else if (p.type === 'spark') {
+                    el.style.boxShadow = `0 0 ${p.size + 4}px ${p.color}, 0 0 ${p.size + 8}px ${p.color}`;
+                }
+            }
+
+            document.body.appendChild(el);
+        });
     }
 }
 
-window.particleSystem = new ParticleSystem();
+const particleSystem = new ParticleSystem();

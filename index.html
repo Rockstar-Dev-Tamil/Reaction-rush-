@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Reaction Rush — A fast-paced reaction time game. Test your reflexes.">
+    <meta name="description" content="Reaction Rush — A cinematic esports reflex arena. Test your reflexes.">
     <title>Reaction Rush</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,78 +14,99 @@
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
-    <!-- Ambient layers -->
-    <div class="bg-noise" aria-hidden="true"></div>
-    <div class="bg-gradient-orbs" aria-hidden="true">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-    </div>
-    <div id="cursor-glow" class="cursor-glow" aria-hidden="true"></div>
+<body data-intensity="0">
+    <!-- === ATMOSPHERIC LAYERS === -->
+    <div class="atmo" aria-hidden="true">
+        <!-- Gradient mesh (3 parallax layers) -->
+        <div class="mesh-layer mesh-far"></div>
+        <div class="mesh-layer mesh-mid"></div>
+        <div class="mesh-layer mesh-near"></div>
 
-    <!-- ====== INTRO ====== -->
-    <section id="intro-section" class="intro-section">
+        <!-- Perspective grid -->
+        <div class="grid-plane" id="grid-plane"></div>
+
+        <!-- Volumetric light beams -->
+        <div class="vol-beams">
+            <div class="beam beam-1"></div>
+            <div class="beam beam-2"></div>
+            <div class="beam beam-3"></div>
+        </div>
+
+        <!-- Film grain + vignette -->
+        <div class="grain"></div>
+        <div class="vignette"></div>
+
+        <!-- Cursor glow -->
+        <div class="cursor-glow" id="cursor-glow"></div>
+
+        <!-- Dust particles (JS-driven) -->
+        <canvas id="dust-canvas" class="dust-canvas"></canvas>
+    </div>
+
+    <!-- === INTRO === -->
+    <section id="intro-section" class="intro">
+        <!-- Letterbox bars -->
+        <div class="letterbox letterbox-top"></div>
+        <div class="letterbox letterbox-bot"></div>
+
         <div class="intro-content">
             <h1 class="intro-title">
-                <span class="title-word" data-text="REACTION">REACTION</span>
-                <span class="title-word title-accent" data-text="RUSH">RUSH</span>
+                <span class="word word-reaction" data-text="REACTION">REACTION</span>
+                <span class="word word-rush" data-text="RUSH">RUSH</span>
             </h1>
             <p class="intro-tagline">Test your reflex. Control your impulse.</p>
-            <button id="start-btn" class="start-btn" aria-label="Start the game">
-                <span class="btn-text">Start the Rush</span>
-                <span class="btn-shine" aria-hidden="true"></span>
+            <button id="start-btn" class="cta" aria-label="Start the game">
+                <span class="cta-text">Start the Rush</span>
+                <span class="cta-shine" aria-hidden="true"></span>
+                <span class="cta-glow" aria-hidden="true"></span>
             </button>
             <p class="intro-hint"><kbd>SPACE</kbd> to play</p>
         </div>
     </section>
 
-    <!-- ====== GAME ====== -->
-    <section id="game-section" class="game-section hidden-game">
+    <!-- === GAME === -->
+    <section id="game-section" class="game hidden-game">
 
-        <!-- Minimal floating HUD -->
+        <!-- HUD -->
         <header class="hud" id="game-hud">
             <div class="hud-left">
-                <div class="hud-score" id="score-display">
-                    <span class="hud-value" id="current-score">0</span>
-                    <span class="hud-label">PTS</span>
+                <div class="hud-chip" id="score-chip">
+                    <span class="hud-val" id="current-score">0</span>
+                    <span class="hud-lbl">PTS</span>
                 </div>
-                <div class="hud-streak" id="streak-display">
+                <div class="hud-chip streak-chip" id="streak-chip">
                     <span class="streak-fire" id="streak-fire">🔥</span>
-                    <span class="hud-value" id="streak-multiplier">1x</span>
+                    <span class="hud-val" id="streak-multiplier">1x</span>
                 </div>
             </div>
-
             <div class="hud-right">
                 <a href="https://discord.gg/g9tNSWFh4r" target="_blank" rel="noopener" class="hud-btn"
-                    aria-label="Join Discord">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                    aria-label="Discord">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                         fill="currentColor">
                         <path
                             d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
                     </svg>
                 </a>
-                <button id="stats-button" class="hud-btn" aria-label="View Stats">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                <button id="stats-button" class="hud-btn" aria-label="Stats">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 20V10"></path>
-                        <path d="M12 20V4"></path>
-                        <path d="M6 20v-6"></path>
+                        <path d="M18 20V10" />
+                        <path d="M12 20V4" />
+                        <path d="M6 20v-6" />
                     </svg>
                 </button>
-                <button id="audio-toggle" class="hud-btn" aria-label="Toggle Audio">
-                    <svg id="icon-audio-on" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" style="display:none;">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <button id="audio-toggle" class="hud-btn" aria-label="Audio">
+                    <svg id="icon-audio-on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
                     </svg>
-                    <svg id="icon-audio-off" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                        <line x1="23" y1="9" x2="17" y2="15"></line>
-                        <line x1="17" y1="9" x2="23" y2="15"></line>
+                    <svg id="icon-audio-off" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                        <line x1="23" y1="9" x2="17" y2="15" />
+                        <line x1="17" y1="9" x2="23" y2="15" />
                     </svg>
                 </button>
                 <select id="theme-select" class="hud-select" aria-label="Theme">
@@ -97,12 +118,15 @@
         </header>
 
         <!-- Arena -->
-        <main class="game-container">
+        <main class="stage">
+            <!-- Spotlight behind arena -->
+            <div class="arena-spotlight" id="arena-spotlight" aria-hidden="true"></div>
+
             <div id="game-arena" class="arena idle">
-                <div class="arena-glow-ring" aria-hidden="true"></div>
+                <div class="arena-edge-light" aria-hidden="true"></div>
                 <div class="arena-inner">
                     <h2 id="arena-title" class="arena-title">Reaction Rush</h2>
-                    <p id="arena-subtitle" class="arena-subtitle">Click anywhere to start</p>
+                    <p id="arena-subtitle" class="arena-sub">Click anywhere to start</p>
                 </div>
             </div>
 
@@ -111,48 +135,44 @@
                 <h2 id="feedback-text"></h2>
                 <p id="feedback-subtext"></p>
             </div>
+
+            <!-- Shockwave ring (JS-triggered) -->
+            <div id="shockwave" class="shockwave" aria-hidden="true"></div>
         </main>
 
-        <!-- Round pill (bottom center) -->
+        <!-- Round pill -->
         <div class="round-pill" id="round-pill">
-            <span>ROUND</span>
-            <strong id="round-number">1</strong>
+            <span>ROUND</span><strong id="round-number">1</strong>
         </div>
     </section>
 
-    <!-- ====== STATS MODAL ====== -->
+    <!-- === STATS MODAL === -->
     <div id="stats-modal" class="modal hidden">
         <div class="modal-backdrop"></div>
         <div class="modal-panel">
-            <div class="modal-header">
+            <div class="modal-head">
                 <h2>Stats</h2>
-                <button id="close-stats" class="hud-btn" aria-label="Close">&times;</button>
+                <button id="close-stats" class="modal-close" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="stats-grid">
-                    <div class="stat-tile">
-                        <span class="stat-icon">⚡</span>
-                        <span class="stat-num" id="stat-avg">0ms</span>
-                        <span class="stat-lbl">Avg Reaction</span>
-                    </div>
-                    <div class="stat-tile">
-                        <span class="stat-icon">🎯</span>
-                        <span class="stat-num" id="stat-rounds">0</span>
-                        <span class="stat-lbl">Rounds Played</span>
-                    </div>
-                    <div class="stat-tile">
-                        <span class="stat-icon">🏆</span>
-                        <span class="stat-num" id="stat-best">0</span>
-                        <span class="stat-lbl">Best Score</span>
-                    </div>
+                    <div class="stat-tile"><span class="stat-icon">⚡</span><span class="stat-num"
+                            id="stat-avg">0ms</span><span class="stat-lbl">Avg Reaction</span></div>
+                    <div class="stat-tile"><span class="stat-icon">🎯</span><span class="stat-num"
+                            id="stat-rounds">0</span><span class="stat-lbl">Rounds Played</span></div>
+                    <div class="stat-tile"><span class="stat-icon">🏆</span><span class="stat-num"
+                            id="stat-best">0</span><span class="stat-lbl">Best Score</span></div>
                 </div>
-                <div class="leaderboard-section">
+                <div class="lb-section">
                     <h3 class="lb-title">Leaderboard</h3>
                     <ol id="leaderboard-list"></ol>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Vignette pulse overlay (JS-triggered) -->
+    <div id="vignette-pulse" class="vignette-pulse" aria-hidden="true"></div>
 
     <script src="audio.js"></script>
     <script src="particles.js"></script>
